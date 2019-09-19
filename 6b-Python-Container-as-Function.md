@@ -25,87 +25,67 @@ perform an action.
 One of the most common reasons for writing a custom Dockerfile for a function
 is to install a Linux package that your function needs.  In our example we're
 going to use the the ever-popular [ImageMagick](https://www.imagemagick.org) to
-do some image processing in our function and while there is a Node.js module for
-ImageMagick, it's just a wrapper on the underlying native libary.  So we'll
-have to install the native library in addition to adding the Node module to our
-`package.json` dependencies. Let's start by creating the Node function.
+do some image processing in our function and while there are several Python libraries for
+ImageMagick, they are just wrappers on the underlying native library.  So we'll
+have to install the native library in addition to adding the Python library to our
+`requirements.txt` dependencies. Let's start by creating the Python function.
 
 ## Function Definition
 
 ![](images/userinput.png)
-> In an **empty folder** create a file named `func.js` and copy/paste the
+> In an **empty folder** create a file named `func.py` and copy/paste the
 following as its content:
- 
-```javascript
-const fdk = require('@fnproject/fdk');
-const fs  = require('fs');
-const tmp = require('tmp');
-const im  = require('imagemagick');
 
-fdk.handle((buffer, ctx) => {
-  return new Promise((resolve, reject) => {
-    tmp.tmpName((err, tmpFile) => {
-      if (err) throw err;
-      fs.writeFile(tmpFile, buffer, (err) => {
-        if (err) throw err;
-        im.identify(['-format', '{"width": %w, "height": %h}', tmpFile],
-          (err, output) => {
-            if (err) {
-              reject(err);
-            } else {
-              resolve(JSON.parse(output));
-            }
-          }
-        );
-      });
-    });
-  });
-}, { inputMode: 'buffer' });
+```python
+import io
+import json
+import tempfile
+
+from fdk import response
+from wand.image import Image
+
+def handler(ctx, data: io.BytesIO=None):
+    resp = {}
+    with tempfile.TemporaryFile() as tempf:
+        tempf.write(data.getbuffer())
+        tempf.seek(0)
+        with Image(file = tempf) as img:
+            resp["width"] = img.width
+            resp["height"] = img.height
+
+    return response.Response(
+        ctx,
+        response_data=json.dumps(resp),
+        headers={"Content-Type": "application/json"}
+    )
 ```
 
 The function takes a binary image as its argument, writes it to a tmp file, and
-then uses ImageMagick to obtain the width and height of the image. Since the
-function argument type is binary we need to set the "inputMode" property to
-"buffer" when we call the the FDK's handle function, i.e.,
-`{ inputMode: 'buffer' }`.  Unlike when using the Java FDK where the function
-signature is examined to determine what input format is expected, in Node.js you
-have to declare what you expect.
+then uses ImageMagick to obtain the width and height of the image.
 
-## Declaring Node.js Dependencies
+## Declaring Python Dependencies
 
-There are lots of interesting elements to this function (other than the typical
-Node "callback hell") but the key one for us is the use of the "imagemagick"
-Node module for image processing.  To use it we need to include it along with
-our other dependencies in our`package.json` file.
+There are lots of interesting elements to this function but the key one for us
+is the use of the "wand" Python library for ImageMagick image processing.  
+To use it we need to include it along with our other dependencies in our
+`requirements.txt` file.
 
 ![](images/userinput.png)
-> In same folder as the `func.js` file, create a `package.json` file and
+> In same folder as the `func.js` file, create a `requirements.txt` file and
 copy/paste the following as its content:
 
-```json
-{
-	"name": "imagedims",
-	"version": "1.0.0",
-	"description": "Function using ImageMagick that returns dimensions",
-	"main": "func.js",
-	"author": "fnproject.io",
-	"license": "Apache-2.0",
-	"dependencies": {
-		"@fnproject/fdk": ">=0.0.11",
-		"tmp": "^0.0.33",
-		"imagemagick": "^0.1.3"
-	}
-}
+```text
+fdk
+wand
 ```
 
-Like with all Node.js functions, we include the Fn Node FDK as a dependency
-along with the "tmp" module for temporary file utilities and "imagemagick" for
-image processing.  
+Like with all Python functions, we include the Fn Python FDK as a dependency
+along with "wand" for imagemagick image processing.  
 
 ## Function Metadata
 
-Now that we have a Node.js function and it's dependencies captured in the 
-`package.json` we need a `func.yaml` to capture the function metadata.
+Now that we have a Python function and it's dependencies captured in the
+`requirements.txt` we need a `func.yaml` to capture the function metadata.
 
 ![](images/userinput.png)
 > In the folder containing the previously created files, create a `func.yaml`
@@ -116,10 +96,11 @@ schema_version: 20180708
 name: imagedims
 version: 0.0.1
 runtime: docker
+memory: 256
 ```
 
-This is a typical `func.yaml` for a Node.js function except that instead of
-declaring the **runtime** as "node" we've specified "**docker**".  If you were
+This is a typical `func.yaml` for a Python function except that instead of
+declaring the **runtime** as "Python" we've specified "**docker**".  If you were
 to type `fn build` right now you'd get the error:
 
 > ```
@@ -140,61 +121,69 @@ The Dockerfile that `fn build` would normally automatically generate to build a
 Node.js function container image looks like this:
 
 ```Dockerfile
-FROM fnproject/node:dev as build-stage
+FROM fnproject/python:3.6-dev as build-stage
 WORKDIR /function
-ADD package.json /function/
-RUN npm install
-
-FROM fnproject/node
-WORKDIR /function
+ADD requirements.txt /function/
+			RUN pip3 install --target /python/  --no-cache --no-cache-dir -r requirements.txt &&\
+			 rm -fr ~/.cache/pip /tmp* requirements.txt func.yaml Dockerfile .venv
 ADD . /function/
-COPY --from=build-stage /function/node_modules/ /function/node_modules/
-ENTRYPOINT ["node", "func.js"]
+RUN rm -fr /function/.pip_cache
+
+FROM fnproject/python:3.6
+WORKDIR /function
+COPY --from=build-stage /function /function
+COPY --from=build-stage /python /python
+ENV PYTHONPATH=/python
+ENTRYPOINT ["/python/bin/fdk", "/function/func.py", "handler"]
 ```
 
-It's a two stage build with the `fnproject/node:dev` image containing `npm` and
-other build tools, and the `fnproject/node` image containing just the Node
+It's a two stage build with the `fnproject/python:3.6-dev` image containing `pip` and
+other build tools, and the `fnproject/python:3.6` image containing just the Python
 runtime.  This approach is designed to ensure that deployable function container
 images are as small as possible--which is beneficial for a number of reasons
 including the time it takes to transfer the image from a Docker respository to
 the compute node where the function is to be run.
 
-## Custom Node.js Function Dockerfile
+## Custom Python Function Dockerfile
 
-The `fnproject/node` container image is built on Alpine so we'll need to install
+The `fnproject/python` container image is built on Debian so we'll need to install
 the
-[ImageMagick Alpine package](https://pkgs.alpinelinux.org/packages?name=imagemagick&branch=edge)
-using the `apk` package management utility.  You can do this with a Dockerfile
+[ImageMagick Debian package](https://packages.debian.org/buster/imagemagick)
+using the `apt-get` package management utility.  You can do this with a Dockerfile
 `RUN` command:
 
 ```Dockerfile
-RUN apk add --no-cache imagemagick
+RUN apt-get update && apt-get install -y imagemagick
 ```
 
 We want to install ImageMagick into the runtime image, not the build image,
-so we need to add the `RUN` command after the `FROM fnproject/node` command.
+so we need to add the `RUN` command after the `FROM fnproject/python:3.6` command.
 
 ![](images/userinput.png)
 > In the folder containing the previously created files, create a file named
 `Dockerfile` and copy/paste the following as its content:
 
 ```Dockerfile
-FROM fnproject/node:dev as build-stage
+FROM fnproject/python:3.6-dev as build-stage
 WORKDIR /function
-ADD package.json /function/
-RUN npm install
-
-FROM fnproject/node
-RUN apk add --no-cache imagemagick
-WORKDIR /function
+ADD requirements.txt /function/
+RUN pip3 install --target /python/  --no-cache --no-cache-dir -r requirements.txt &&\
+		rm -fr ~/.cache/pip /tmp* requirements.txt func.yaml Dockerfile .venv
 ADD . /function/
-COPY --from=build-stage /function/node_modules/ /function/node_modules/
-ENTRYPOINT ["node", "func.js"]
+RUN rm -fr /function/.pip_cache
+
+FROM fnproject/python:3.6
+RUN apt-get update && apt-get install -y imagemagick
+WORKDIR /function
+COPY --from=build-stage /function /function
+COPY --from=build-stage /python /python
+ENV PYTHONPATH=/python
+ENTRYPOINT ["/python/bin/fdk", "/function/func.py", "handler"]
 ```
 
-With this Dockerfile the Node.js function, its dependencies (including the
-"imagemagick" Node wrapper), and the "imagemagick" Alpine package will be
-included in an image derived from the base `fnproject/node` image. We should be
+With this Dockerfile the Python function, its dependencies (including the
+"wand" library), and the "imagemagick" Debian package will be
+included in an image derived from the base `fnproject/python:3.6` image. We should be
 good to go!
 
 ## Building and Deploying
@@ -210,21 +199,36 @@ your function.  Give it a try:
 You should see output similar to:
 
 ```shell
-Building image phx.ocir.io/mytenancy/myuser/imagedims:0.0.1
-FN_REGISTRY:  phx.ocir.io/mytenancy/myuser
-Current Context:  workshop
-Sending build context to Docker daemon  39.94kB
-Step 1/10 : FROM fnproject/node:dev as build-stage
- ---> 016382f39a51
-...
-Step 6/10 : RUN apk add --no-cache imagemagick
+Building image phx.ocir.io/ocicpm/test/imagedims:0.0.24
+FN_REGISTRY:  phx.ocir.io/ocicpm/test
+Current Context:  ocicpm
+Sending build context to Docker daemon  10.75kB
+Step 1/13 : FROM fnproject/python:3.6-dev as build-stage
+ ---> aa4e9945b65f
+Step 2/13 : WORKDIR /function
  ---> Using cache
- ---> f86803cfbf80
+ ---> daec60dbb5e6
+Step 3/13 : ADD requirements.txt /function/
+ ---> Using cache
+ ---> 88d7202e929c
+Step 4/13 : RUN pip3 install --target /python/  --no-cache --no-cache-dir -r requirements.txt &&		rm -fr ~/.cache/pip /tmp* requirements.txt func.yaml Dockerfile .venv
+ ---> Using cache
+ ---> 09dfa3e73d0e
+Step 5/13 : ADD . /function/
+ ---> 92980d582449
+Step 6/13 : RUN rm -fr /function/.pip_cache
+ ---> Running in 381c9b405e40
+Removing intermediate container 381c9b405e40
+ ---> 51ae3a8fffa5
+Step 7/13 : FROM fnproject/python:3.6
+ ---> c31b51a1f190
+Step 8/13 : RUN apt-get update && apt-get install -y imagemagick
+ ---> Running in 63439818530b
 ...
-Successfully built 1565a9a99aec
-Successfully tagged phx.ocir.io/mytenancy/myuser/imagedims:0.0.1
+Successfully built 0b76f6b5e783
+Successfully tagged phx.ocir.io/mytenancy/myuser/imagedims:0.0.24
 
-Function phx.ocir.io/mytenancy/myuser/imagedims:0.0.1 built successfully.
+Function phx.ocir.io/mytenancy/myuser/imagedims:0.0.24 built successfully.
 ```
 
 Just like with a default build, the output is a container image.  From this
@@ -273,7 +277,7 @@ The first time you invoke the function you'll incur some "cold start" cost. For
 this input file you should see the following output:
 
 >```json
->{"width":3,"height":3}
+>{"width": 3, "height": 3}
 >```
 
 # Conclusion

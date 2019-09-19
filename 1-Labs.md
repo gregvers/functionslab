@@ -21,14 +21,22 @@ programming.
 
 So let's [create and deploy your first function](3-First-Function.md).
 
-## Java Functions
+## Functions in other languages
 
 Fn provides an FDK (Function Development Kit) for each of the core supported
-programming languages.  But the Java FDK is the most advanced with support for
-Maven builds, automatic function argument type conversions, and comprehenive
-support for function testing with JUnit.
+programming languages.
 
-The [Introduction to Java Functions](4-Java-Functions.md) lab covers all these
+### Java
+The Java FDK is the most advanced with support for Maven builds, automatic
+function argument type conversions, and comprehensive
+support for function testing with JUnit.
+The [Java Functions](4-Java-Functions.md) lab covers all these
+topics and more.
+
+### Python
+The Python FDK supports automatic function argument type conversions, and
+comprehensive support for function testing with pytest.
+The [Python Functions](4b-Python-Functions.md) lab covers all these
 topics and more.
 
 ## Troubleshooting
@@ -42,25 +50,26 @@ introduces techniques you can use to track down the source of a failure.
 
 ## Automatically invoke Functions using OCI Events service
 
-OCI Events service lets you monitor OCI resource changes and send 
-notifications and/or trigger a function automatically in response to that 
-change. We'll explore sending email notifications, and invoking a function via 
-the OCI Events when an image is uploaded to an OCI Object Storage bucket in 
+OCI Events service lets you monitor OCI resource changes and send
+notifications and/or trigger a function automatically in response to that
+change. We'll explore sending email notifications, and invoking a function via
+the OCI Events when an image is uploaded to an OCI Object Storage bucket in
 [Automatically invoke Functions using OCI Events](9-Functions-Invoke-OCI-Events.md).
 
 ## Functions Clients
 
 Functions can be invoked over HTTP using their "invoke endpoint". You can
-either invoke the endpoint directly or use the OCI SDK to both manage and 
+either invoke the endpoint directly or use the OCI SDK to both manage and
 invoke functions. We'll explore how to invoke a function using:
 * [OCI SDK for Functions](8-Functions-Clients-SDK.md)
-* [`oci-curl` utility](7-Functions-Clients-oci-curl.md) 
+* [`oci-curl` utility](7-Functions-Clients-oci-curl.md)
 
 ## Containers as Functions
 
 One of the coolest features of Fn is that while it's easy to write functions in
 various programming languages, you can also deploy Docker images as functions.
 This opens up entire worlds of opportunity as you can package existing code,
-utilities, or use a programming language not yet supported by Fn.  Try the
-[Containers as Functions](6-Container-as-Function.md)
-tutorial to see how easy it is.
+utilities, or use a programming language not yet supported by Fn.  
+Try the tutorial to see how easy it is.
+[Containers as Functions - Nodejs](6a-Nodejs-Container-as-Function.md)
+[Containers as Functions - Python](6b-Python-Container-as-Function.md)
