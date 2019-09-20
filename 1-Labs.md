@@ -58,5 +58,5 @@ various programming languages, you can also deploy Docker images as functions.
 This opens up entire worlds of opportunity as you can package existing code,
 utilities, or use a programming language not yet supported by Fn.  
 Try the tutorial to see how easy it is:
-* [Containers as Functions - Nodejs](6a-Nodejs-Container-as-Function.md)
-* [Containers as Functions - Python](6b-Python-Container-as-Function.md)
+* [Containers as Functions with Nodejs](6c-Container-as-Function-nodejs.md)
+* [Containers as Functions with Python](6b-Container-as-Function-python.md)
