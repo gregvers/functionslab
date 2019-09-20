@@ -16,9 +16,9 @@ Now that `fn` CLI is installed and your development environment is configured,
 we can dig into creating and running functions. Fn provides a FDK
 (Function Development Kit) for each of the core supported programming languages.
 In this lab you'll create, deploy, and run your first function.
-* [First function in Java](3a-First-Function-java.md)
-* [First function in Python](3b-First-Function-python.md)
-* [First function in Nodejs](3c-First-Function-nodejs.md)
+* [First function with Java](3a-First-Function-java.md)
+* [First function with Python](3b-First-Function-python.md)
+* [First function with Nodejs](3c-First-Function-nodejs.md)
 
 ## Unit Testing
 
