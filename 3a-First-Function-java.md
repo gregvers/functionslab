@@ -1,88 +1,112 @@
-# Your First Function with Node.js
+# Your First Function with Java
 
 In this introductory lab we'll walk through developing a function using the
-JavaScript programming language and Node.js (without installing any Node.js
-tools!) and deploying that function Oracle Functions.  We'll also learn about
-the core Fn concepts like applications and triggers.
+Java programming language and deploying that function with Oracle Functions.  We'll
+also learn about the core Fn concepts like applications and triggers.
 
 > As you make your way through this lab, look out for this icon.
 ![user input](images/userinput.png) Whenever you see it, it's time for you to
 perform an action.
 
-Let's start with a very simple "hello world" function written in [Node.js
-JavaScript](https://nodejs.org/). Don't worry, you don't need to know Node!  In
-fact you don't even need to have Node installed on your development machine as
-Fn provides the necessary Node tools as a Docker container.  Let's walk through
+Let's start with a very simple "hello world" function written in [Java]
+(https://www.oracle.com/java/). Don't worry, you don't need to know Java!  In
+fact you don't even need to have the Java JDK or JRE installed on your development machine as
+Fn provides the necessary Java tools as a Docker container.  Let's walk through
 your first function to become familiar with the process and how Fn supports
 development.
 
-
-### Create your Function
+## Create your Function
 In the terminal type the following.
 
 ![user input](images/userinput.png)
 >```
-> fn init --runtime node nodefn
+> fn init --runtime python javafn
 >```
 
-The output will be
-
-```yaml
-Creating function at: /nodefn
+The output will be:
+```sh
+Creating function at: /javafn
 Function boilerplate generated.
 func.yaml created.
 ```
 
-The `fn init` command creates a simple function with a bit of boilerplate to get
-you started. The `--runtime` option is used to indicate that the function we're
-going to develop will be written in Node. A number of other runtimes are also
-supported.  Fn creates the simple function along with several supporting files
-in the `nodefn` directory.
+The `fn init` command creates an simple function with a bit of boilerplate to
+get you started. The `--runtime` option is used to indicate that the function
+we're going to develop will be written in Java 11, the default version as of
+this writing. A number of other runtimes are also supported.  
 
-### Review your Function File
+### Review the generated files
 
-With your function created change into the `/nodefn` directory.
-
-![user input](images/userinput.png)
->```
-> cd nodefn
->```
-
-Now get a list of the directory contents.
-
-![user input](images/userinput.png)
->```
-> ls
->```
-
-```sh
-func.js func.yaml package.json
-```
-
-The `func.js` file which contains your actual Node function is generated along
-with several supporting files. To view your Node function type:
+With your function created change into the `/javafn` directory.
 
 ![user input](images/userinput.png)
 >```sh
-> cat func.js
+>cd javafn
 >```
 
-```js
-const fdk=require('@fnproject/fdk');
+Use the `find` command to see the directory structure and files that the
+`init` command has created.
 
-fdk.handle(function(input){
-  let name = 'World';
-  if (input.name) {
-    name = input.name;
-  }
-  return {'message': 'Hello ' + name}
-})
+![user input](images/userinput.png)
+>`find .`
+
+```sh
+.
+./func.yaml
+./pom.xml
+./src
+./src/test
+./src/test/java
+./src/test/java/com
+./src/test/java/com/example
+./src/test/java/com/example/fn
+./src/test/java/com/example/fn/HelloFunctionTest.java
+./src/main
+./src/main/java
+./src/main/java/com
+./src/main/java/com/example
+./src/main/java/com/example/fn
+./src/main/java/com/example/fn/HelloFunction.java
 ```
 
-This function looks for JSON input in the form of `{"name": "Bob"}`. If this
-JSON example is passed to the function, the function returns `{"message":"Hello
-Bob"}`. If no JSON data is found, the function returns `{"message":"Hello
-World"}`.
+The init command has created a `func.yaml` file for your
+function but in the case of Java it also creates a Maven `pom.xml` file
+as well as a function class and function test class.
+
+### Exploring the Function Code
+with several supporting files. You may want to open the
+`com.example.fn.HelloFunction` class file in one of the IDEs available in the
+lab environment or type:
+
+![user input](images/userinput.png)
+>```sh
+> cat ./src/main/java/com/example/fn/HelloFunction.java
+>```
+
+```java
+package com.example.fn;
+
+public class HelloFunction {
+
+    public String handleRequest(String input) {
+        String name = (input == null || input.isEmpty()) ? "world"  : input;
+
+        return "Hello, " + name + "!";
+    }
+
+}
+```
+As you can see the function is just a method on a POJO that takes a string value
+and returns another string value, but the Java FDK also supports binding
+input parameters to streams, primitive types, byte arrays and Java POJOs
+unmarshalled from JSON.  Functions can also be static or instance
+methods.
+
+This function returns the string "Hello, world!" unless an input string
+is provided, in which case it returns "Hello, &lt;input string&gt;!". Notice that
+the Java FDK reads from standard input and automatically puts the
+content into the string passed to the function.  This greatly simplifies
+the function code.
 
 ### Understanding func.yaml
 
@@ -96,39 +120,36 @@ configuration file. Let's look at the contents:
 
 ```yaml
 schema_version: 20180708
-name: nodefn
+name: javafn
 version: 0.0.1
-runtime: node
-entrypoint: node func.js
+runtime: java
+build_image: fnproject/fn-java-fdk-build:jdk11-1.0.86
+run_image: fnproject/fn-java-fdk:jre11-1.0.86
+cmd: com.example.fn.HelloFunction::handleRequest
 ```
 
 The generated `func.yaml` file contains metadata about your function and
 declares a number of properties including:
 
-* schema_version--identifies the version of the schema for this function file.
-  Essentially, it determines which fields are present in `func.yaml`.
-* name--the name of the function. Matches the directory name.
-* version--automatically starting at 0.0.1.
-* runtime--the name of the runtime/language which was set based on the value set
-  in `--runtime`.
-* entrypoint--the name of the executable to invoke when your function is called,
-  in this case `node func.js`.
+* schema_version--identifies the version of the schema for this function file
+* version--the version of the function
+* runtime--the language used for this function
+* build_image--the image used to build your function's image
+* run_image--the image your function runs in
+* cmd--the `cmd` property is set to the fully qualified name of the Java
+  class and method that should be invoked when your `javafn` function is
+  called
 
-There are other user-specifiable properties but these will suffice for this
-example.  Note that if not specified, the name of your function will be taken
-from the containing folder name. 
+### The pom.xml file
 
-### Other Function Files
-
-The `fn init` command generated one other file.
-
-* `package.json` --  specifies all the Node.js dependencies for your Node
-  function.
+The Java function init also generates a Maven `pom.xml` file to build and test
+your function.  The pom includes the Fn Java FDK runtime and the test libraries
+your function needs.
 
 ## Your Deployment Target
 
-With the `nodefn` directory containing `func.js` and `func.yaml` you've got
-everything you need to deploy the function to Oracle Functions.
+With the `javafn` directory containing a Java class file, `func.yaml` and pom.xml
+you've got everything you need to deploy the function to Oracle Functions.
 
 Make sure your context is set to point to Oracle Functions. Use the `fn list
 contexts` command to check.
@@ -143,14 +164,15 @@ to Oracle Functions and OCIR, respectively:
 
 ```shell
 CURRENT    NAME        PROVIDER    API URL                                           REGISTRY
-           default     default                                                       shaunsmith
+           default     default                                                       gregvers
 *          workshop    oracle      https://functions.us-phoenix-1.oraclecloud.com    phx.ocir.io/mytenancy/myuser
 ```
 
 If your context *is not* configured correctly, please return to the
 [*Environment Setup*](0-Setup.md) instructions before proceeding.
 
-## Deploying your First Function
+
+## Deploying your Function
 
 Deploying your function is how you publish the function and make it accessible
 to other users and systems. To see the details of what is happening during a
@@ -223,50 +245,49 @@ to.
 You should see output similar to:
 
 ```shell
-Deploying nodefn to app: labapp-NNN
-Bumped to version 0.0.2
-Building image phx.ocir.io/mytenancy/myuser/nodefn:0.0.2
+Deploying javafn to app: labapp-NNN
+Building image phx.ocir.io/mytenancy/myuser/javafn:0.0.2
 FN_REGISTRY:  phx.ocir.io/mytenancy/myuser
 Current Context:  workshop
-Sending build context to Docker daemon   5.12kB
-Step 1/9 : FROM fnproject/node:dev as build-stage
- ---> 016382f39a51
-Step 2/9 : WORKDIR /function
+Sending build context to Docker daemon  14.34kB
+Step 1/11 : FROM fnproject/fn-java-fdk-build:jdk11-1.0.86 as build-stage
+ ---> 0ab30d8e3524
+Step 2/11 : WORKDIR /function
  ---> Using cache
- ---> 17d33f5e5433
-Step 3/9 : ADD package.json /function/
+ ---> d6c3e60e0c04
+Step 3/11 : ENV MAVEN_OPTS -Dhttp.proxyHost= -Dhttp.proxyPort= -Dhttps.proxyHost= -Dhttps.proxyPort= -Dhttp.nonProxyHosts= -Dmaven.repo.local=/usr/share/maven/ref/repository
  ---> Using cache
- ---> 26821de105b3
-Step 4/9 : RUN npm install
+ ---> 9133a74699d5
+Step 4/11 : ADD pom.xml /function/pom.xml
  ---> Using cache
- ---> 42c39f1f14bb
-Step 5/9 : FROM fnproject/node
- ---> 016382f39a51
-Step 6/9 : WORKDIR /function
+ ---> f41ec165b9a8
+Step 5/11 : RUN ["mvn", "package", "dependency:copy-dependencies", "-DincludeScope=runtime", "-DskipTests=true", "-Dmdep.prependGroupId=true", "-DoutputDirectory=target", "--fail-never"]
  ---> Using cache
- ---> 17d33f5e5433
-Step 7/9 : ADD . /function/
- ---> 0973c9239c46
-Step 8/9 : COPY --from=build-stage /function/node_modules/ /function/node_modules/
- ---> 1785a3d39bec
-Step 9/9 : ENTRYPOINT ["node", "func.js"]
- ---> Running in 78424021a8ee
-Removing intermediate container 78424021a8ee
- ---> 5c0b79de04e8
-Successfully built 5c0b79de04e8
-Successfully tagged phx.ocir.io/mytenancy/myuser/nodefn:0.0.2
+ ---> 384bcd123a67
+Step 6/11 : ADD src /function/src
+ ---> Using cache
+ ---> 2f3afddbba1b
+Step 7/11 : RUN ["mvn", "package"]
+ ---> Using cache
+ ---> 00a1b46e3258
+Step 8/11 : FROM fnproject/fn-java-fdk:jre11-1.0.86
+ ---> d7caad608803
+Step 9/11 : WORKDIR /function
+ ---> Using cache
+ ---> d075b963bbfd
+Step 10/11 : COPY --from=build-stage /function/target/*.jar /function/app/
+ ---> Using cache
+ ---> c6a836a20c57
+Step 11/11 : CMD ["com.example.fn.HelloFunction::handleRequest"]
+ ---> Using cache
+ ---> 10586c295622
+Successfully built 10586c295622
+Successfully tagged phx.ocir.io/mytenancy/myuser/javafn:0.0.2
 
-Parts:  [phx.ocir.io mytenancy myuser nodefn:0.0.2]
-Pushing phx.ocir.io/mytenancy/myuser/nodefn:0.0.2 to docker registry...The push refers to repository [phx.ocir.io/mytenancy/myuser/nodefn]
-ffc0648dc97f: Pushed
-d85ee6e79290: Pushed
-0677ac33d692: Pushed
-0b3e54ee2e85: Pushed
-ad77849d4540: Pushed
-5bef08742407: Pushed
-0.0.2: digest: sha256:6a15a46ca32ec1bdfe7f49ba5e3ac705adbe15658e795747adb661e46ba73c7f size: 1571
-Updating function nodefn using image phx.ocir.io/mytenancy/myuser/nodefn:0.0.2...
-Successfully created function: nodefn with phx.ocir.io/mytenancy/myuser/nodefn:0.0.2
+Parts:  [phx.ocir.io mytenancy myuser javafn:0.0.2]
+Pushing phx.ocir.io/mytenancy/myuser/javafn:0.0.2 to docker registry...The push refers to repository [phx.ocir.io/mytenancy/myuser/javafn]
+...
+Updating function javafn using image phx.ocir.io/mytenancy/myuser/javafn:0.0.2...
 ```
 
 Since we turned on verbose mode, the steps to build the Docker container image
@@ -274,50 +295,55 @@ are displayed. Normally you deploy an application without the `-v/--verbose`
 option. If you rerun the command a new image and version is created, pushed to
 OCIR, and deployed.
 
+The output message
+`Updating function javafn using image phx.ocir.io/mytenancy/myuser/javafn:0.0.2...`
+let's us know that the function is packaged in the image
+"phx.ocir.io/mytenancy/myuser/javafn:0.0.2".
+
 ### Functions in the Oracle Functions Console
 
 Click on `labapp-NNN` in the Functions Applications List and you'll see the
-`nodefn` function appears in the functions list.
+`pythonfn` function appears in the functions list.
 
-![labapp-NNN Functions](images/labapp-nodefn.png)
+![labapp-NNN Functions](images/labapp-pythonfn.png)
 
-### Invoking your Function with the CLI
+## Invoking your Deployed Function
 
 There are a few ways you can invoke your function.  The easiest is with the `fn`
 CLI.  We'll see other ways in subsequent labs. Type the following:
 
 ![user input](images/userinput.png)
 >```sh
-> fn invoke labapp-NNN nodefn
+> fn invoke labapp-NNN javafn
 >```
 
 which results in:
 
-```js
-{"message":"Hello World"}
+```txt
+Hello, World!
 ```
 
-The first time you call a function in a new application you may encounter what
-is commonly called a "cold start," which results in the function call taking
-longer than usual. When you invoked "labapp-NNN nodefn," Oracle Functions looked
-up the "labapp-NNN" application and then looked for the Docker container image
-bound to the "nodefn" function and executed the code. The necessary compute
-infrastructure was also allocated.  If you invoke the function a second time
-you'll notice it's much faster.
-
-You can also pass data to the invoke command, for example:
+You can also pass data to the invoke command. For example:
 
 ![user input](images/userinput.png)
 >```sh
-> echo -n '{"name":"Bob"}' | fn invoke labapp-NNN nodefn
+> echo -n 'Bob' | fn invoke labapp-NNN javafn
 >```
 
-```js
-{"message":"Hello Bob"}
+```txt
+Hello, Bob!
 ```
 
-The JSON data was parsed and since `name` was set to "Bob", that value is passed
-in the function response.
+"Bob" was passed to the function where it is processed and returned in the
+output.
+
+The first time you call a function in a new application you may encounter what
+is commonly called a "cold start," which results in the function call taking
+longer than usual. When you invoked "labapp-NNN pythonfn," Oracle Functions looked
+up the "labapp-NNN" application and then looked for the Docker container image
+bound to the "pythonfn" function and executed the code. The necessary compute
+infrastructure was also allocated.  When you invoke the function a second time
+you'll notice it's much faster.
 
 ### Understand fn deploy
 
@@ -338,18 +364,18 @@ function and building a container image.
 
 As the `fn` CLI is built on Docker you can use the `docker` command to see the local
 container image you just generated. You may have a number of Docker images so
-use the following command to see only versions of nodefn:
+use the following command to see only versions of javafn:
 
 ![user input](images/userinput.png)
 >```sh
-> docker images | grep nodefn
+> docker images | grep javafn
 >```
 
 You should see something like:
 
 ```sh
-phx.ocir.io/mytenancy/myuser/nodefn   0.0.2    5c0b79de04e8   15 minutes ago  66.3MB
-phx.ocir.io/mytenancy/myuser/nodefn   0.0.1    4936dbed0df6   40 minutes ago  66.3MB
+phx.ocir.io/mytenancy/myuser/javafn   0.0.2    5c0b79de04e8   15 minutes ago  66.3MB
+phx.ocir.io/mytenancy/myuser/javafn   0.0.1    4936dbed0df6   40 minutes ago  66.3MB
 ```
 
 ### Explore your Application
@@ -363,7 +389,7 @@ The fn CLI provides a couple of commands to let us see what we've deployed.
 >```
 
 Which, in our case, returns the name of the application we created when we
-deployed our `nodefn` function:
+deployed our `pythonfn` function:
 
 ```shell
 NAME         ID
@@ -380,7 +406,7 @@ functions included in "labapp-NNN" we can type:
 
 ```sh
 NAME    IMAGE                                                  ID
-nodefn  phx.ocir.io/mytenancy/myuser/nodefn:0.0.2    ocid1.fnfunc.oc1.us-phoenix-1.aaaaaaaaacm4u6futn2q34fh4hbkirwsxdffss42kvd3kl6xxakkful5yehq
+javafn  phx.ocir.io/mytenancy/myuser/pythonfn:0.0.2    ocid1.fnfunc.oc1.us-phoenix-1.aaaaaaaaacm4u6futn2q34fh4hbkirwsxdffss42kvd3kl6xxakkful5yehq
 ```
 
 ## Wrap Up
@@ -388,5 +414,5 @@ nodefn  phx.ocir.io/mytenancy/myuser/nodefn:0.0.2    ocid1.fnfunc.oc1.us-phoenix
 Congratulations!  In this lab you've accomplished a lot.  You've created
 your first function, deployed it to Oracle Functions and invoked it!
 
-NEXT: [*Java Functions*](4-Java-Functions.md), UP: [*Labs*](1-Labs.md), HOME:
+NEXT: [*Unit Testing with Java*](4a-JUnit-Testing-java.md), UP: [*Labs*](1-Labs.md), HOME:
 [*INDEX*](README.md)

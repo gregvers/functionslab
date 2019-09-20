@@ -12,32 +12,19 @@ helpful:
 
 ## Your First Function
 
-Now that `fn` CLI is installed and your development envirionment is configured,
-we can dig into creating and running functions.  In this lab you'll create,
-deploy, and run a Node.js function.  If you aren't a Node.js programmer, don't
-panic! All the code is provided and is pretty easy to understand.  The focus of
-this tutorial is on becoming familiar with the basics of Fn, not Node.js
-programming.
+Now that `fn` CLI is installed and your development environment is configured,
+we can dig into creating and running functions. Fn provides a FDK
+(Function Development Kit) for each of the core supported programming languages.
+In this lab you'll create, deploy, and run your first function.
+* [First function in Java](3a-First-Function-java.md)
+* [First function in Python](3b-First-Function-python.md)
+* [First function in Nodejs](3c-First-Function-nodejs.md)
 
-So let's [create and deploy your first function](3-First-Function.md).
+## Unit Testing
 
-## Functions in other languages
-
-Fn provides an FDK (Function Development Kit) for each of the core supported
-programming languages.
-
-### Java
-The Java FDK is the most advanced with support for Maven builds, automatic
-function argument type conversions, and comprehensive
-support for function testing with JUnit.
-The [Java Functions](4-Java-Functions.md) lab covers all these
-topics and more.
-
-### Python
-The Python FDK supports automatic function argument type conversions, and
-comprehensive support for function testing with pytest.
-The [Python Functions](4b-Python-Functions.md) lab covers all these
-topics and more.
+The FDK supports Unit Testing for the core supported programming languages.
+* [Unit Testing with Java](4a-Unit-Testing-java.md)
+* [Unit Testing with Python](4b-Unit-Testing-python.md)
 
 ## Troubleshooting
 
